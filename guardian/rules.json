@@ -1,0 +1,73 @@
+{
+  "_comment": "Patterns are Python regexes, matched case-insensitively against each piece of a command. Order of precedence: deny > ask > allow > unknown_action.",
+
+  "deny": [
+    ["\\brm\\s+(-[a-z]*\\s+)*-[a-z]*[rf][a-z]*\\s+(-[a-z]*\\s+)*(/\\*?|~/?|\\$HOME/?)(?![\\w.\\-/])", "recursive delete of root/home"],
+    ["\\brm\\s+.*--no-preserve-root", "rm --no-preserve-root"],
+    ["\\bmkfs(\\.\\w+)?\\b", "formats a filesystem"],
+    ["\\b(fdisk|sfdisk|parted|gdisk|wipefs)\\b", "edits disk partitions"],
+    ["\\bdd\\b.*\\bof=/dev/", "raw write to a device"],
+    [">\\s*/dev/(sd|nvme|hd|vd|mmcblk)", "redirect onto a block device"],
+    [":\\(\\)\\s*\\{\\s*:\\|:&\\s*\\};:", "fork bomb"],
+    ["\\b(shutdown|reboot|poweroff|halt|init\\s+[06])\\b", "power control"],
+    ["\\bsystemctl\\s+(poweroff|reboot|halt|suspend|hibernate)\\b", "power control"],
+    ["\\bsudo\\b|\\bsu\\s+(-|root)|\\bdoas\\b|\\bpkexec\\b", "privilege escalation"],
+    ["\\bchmod\\s+(-[a-z]*\\s+)*-?[a-z]*R[a-z]*\\s+[0-7]*777\\s+/", "recursive chmod 777 on system path"],
+    ["\\bchown\\s+(-[a-z]*\\s+)*-?[a-z]*R[a-z]*\\s+\\S+\\s+/(\\s|$)", "recursive chown of /"],
+    ["(curl|wget)\\b[^|]*\\|\\s*(sudo\\s+)?(ba|z|da)?sh\\b", "pipes a download straight into a shell"],
+    ["\\b(iptables|nft|ufw)\\b.*(-F|flush|disable|reset)", "drops firewall rules"],
+    ["\\bamdvbflash\\b|\\batiflash\\b|\\bflashrom\\b", "flashes GPU/board firmware"],
+    ["\\b(rocm-smi|amd-smi)\\b.*(--setsclk|--setmclk|--setfan|--setpoweroverdrive|--setperfdeterminism|--resetclocks|--setoverdrive|--setpoweroverdrive|set\\s)", "changes GPU clocks/power/fans"],
+    ["\\bmodprobe\\s+-r\\b|\\brmmod\\b", "unloads kernel modules"],
+    ["/etc/(passwd|shadow|sudoers|ssh/sshd_config)", "touches auth/system config"],
+    ["\\.ssh/(id_|authorized_keys)", "touches SSH keys"],
+    ["\\bgit\\s+push\\b.*(--force\\b|-f\\b|--mirror)", "force push"],
+    ["\\bcrontab\\s+-r\\b", "wipes crontab"],
+    ["\\b(nc|ncat|netcat|socat)\\b.*(-e|-c|exec)", "reverse shell pattern"],
+    ["\\bhistory\\s+-c\\b|unset\\s+HISTFILE", "erasing shell history"],
+    ["\\bkill(all)?\\s+(-9\\s+)?-?1\\b|\\bpkill\\s+-9\\s+-u", "mass process kill"]
+  ],
+
+  "ask": [
+    ["\\bfind\\b.*(-delete|-exec\\s+rm)", "find that deletes files"],
+    ["\\b(apt|apt-get|dpkg|snap)\\b\\s+(install|remove|purge|upgrade|dist-upgrade|-i|-r)", "system package change"],
+    ["\\bpip3?\\s+install\\b|\\buv\\s+pip\\s+install\\b|\\bnpm\\s+(i|install)\\s+-g\\b", "installs packages"],
+    ["\\bsystemctl\\s+(start|stop|restart|enable|disable|mask)\\b", "changes a system service"],
+    ["\\bdocker\\s+(run|rm|rmi|system\\s+prune|compose\\s+down)", "docker change"],
+    ["\\bdocker\\s+run\\b.*--privileged", "privileged container"],
+    ["\\bgit\\s+(push|reset\\s+--hard|clean\\s+-[a-z]*f)", "git push / destructive git"],
+    ["\\brm\\s+(-[a-z]*\\s+)*-[a-z]*r", "recursive delete"],
+    ["\\b(curl|wget)\\b.*(-X\\s*(POST|PUT|DELETE)|--data|-d\\s|--upload-file|-T\\s)", "sends data to the network"],
+    ["\\bscp\\b|\\brsync\\b.*@|\\bssh\\b", "remote connection"],
+    ["\\bkill(all)?\\b|\\bpkill\\b", "kills processes"],
+    ["\\bcrontab\\b", "scheduled job change"],
+    ["\\bchmod\\b|\\bchown\\b", "permission change"]
+  ],
+
+  "allow": [
+    ["^(ls|ll|pwd|cd|echo|printf|cat|head|tail|less|wc|sort|uniq|cut|tr|diff|grep|rg|egrep|fgrep|find|fd|tree|stat|file|du|df|free|uptime|whoami|id|date|which|type|env|printenv|true|false|test|basename|dirname|realpath|sleep|jq|yq|awk|sed -n)(\\s|$)", "read-only command"],
+    ["^git\\s+(status|log|diff|show|branch|fetch|pull|add|commit|checkout|switch|stash|rev-parse|remote -v|ls-files|blame)(\\s|$)", "everyday git"],
+    ["^(python3?|node|pnpm|npm|npx|uv|pytest|make|cargo|go)\\s", "build/test tooling"],
+    ["^(rocm-smi|amd-smi|rocminfo|nvtop|radeontop)(\\s+(--show\\S*|-[a-z]+|list|metric|static))*\\s*$", "GPU read-only status"],
+    ["^(mkdir|touch|cp|mv)\\s", "workspace file operations"]
+  ],
+
+  "protected_paths": ["/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/var/lib", "/root", "~/.ssh", "~/.bashrc", "~/.profile", "/dev"],
+
+  "unknown_action": "ask",
+  "ask_when_unattended": "deny",
+
+  "loop_guard": {
+    "same_command_max": 5,
+    "same_command_window_seconds": 120,
+    "max_commands_per_minute": 60
+  },
+
+  "llm_review": {
+    "enabled": false,
+    "endpoint": "http://127.0.0.1:8080/v1",
+    "model": "local",
+    "api_key_env": "GUARDIAN_LLM_KEY",
+    "timeout_seconds": 20
+  }
+}
